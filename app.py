@@ -108,12 +108,12 @@ def clean_amount_value(val):
         return None
 
 # ----------------------- UPLOAD & PROCESS -----------------------
-uploaded_file = st.file_uploader("📤 Select a Receipt", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("Select a Receipt", type=["png", "jpg", "jpeg"])
 
 if uploaded_file is not None:
     st.image(uploaded_file, caption="Uploaded Receipt", use_container_width=True)
 
-    with st.spinner("Extracting data... ⏳"):
+    with st.spinner("Extracting data..."):
         lines = extract_text(uploaded_file)
         st.write("### Extracted Text:")
         st.write(lines)
@@ -121,19 +121,19 @@ if uploaded_file is not None:
         parsed = parse_data(lines)
 
         if any(parsed.values()):
-            st.success("✅ Data extracted successfully!")
+            st.success("Successful!")
             st.json(parsed)
 
             # Append extracted record to dataset
             df = pd.concat([df, pd.DataFrame([parsed])], ignore_index=True)
             df.to_csv(DATA_FILE, index=False)
-            st.success("Record added to dataset ✅")
+            st.success("Record added to dataset")
         else:
-            st.warning("⚠️ No relevant data extracted. Check the image clarity or text format.")
+            st.warning("No relevant data extracted. Check the image clarity or text format.")
 
 # ----------------------- DATA DISPLAY -----------------------
 st.divider()
-st.subheader("📊 Extracted Receipts Dataset")
+st.subheader("Extracted Receipts Dataset")
 st.dataframe(df, use_container_width=True)
 
 # Clean and calculate total amount using only $-based entries
@@ -146,10 +146,8 @@ except Exception:
 
 # ----------------------- DOWNLOAD BUTTON -----------------------
 st.download_button(
-    label="📥 Download Dataset as CSV",
+    label="Download Dataset as CSV",
     data=df.drop(columns="Amount Cleaned", errors="ignore").to_csv(index=False).encode("utf-8"),
     file_name="extracted_receipts.csv",
     mime="text/csv"
 )
-
-st.info("Uploads append to the same dataset. Bank name is detected as the first FULLY UPPERCASE text before 'Detailed Receipt'. Amounts are taken only when a $ is present.")
