@@ -8,7 +8,7 @@ import re
 # ----------------------- PAGE SETUP -----------------------
 st.set_page_config(layout="wide")
 st.title("SmartVision Analytics")
-st.write("Upload bank receipt to extract transaction details automatically.")
+st.write("Upload a bank receipt to extract transaction details automatically.")
 
 # ----------------------- CONFIGURATION -----------------------
 myconfig = r"--psm 11 --oem 3"
@@ -108,25 +108,48 @@ def clean_amount_value(val):
         return None
 
 # ----------------------- UPLOAD & PROCESS -----------------------
-uploaded_file = st.file_uploader("Select Receipt", type=["png", "jpg", "jpeg"])
+uploaded_file = st.file_uploader("📤 Select a Receipt", type=["png", "jpg", "jpeg"])
+
+if uploaded_file is not None:
+    st.image(uploaded_file, caption="Uploaded Receipt", use_container_width=True)
+
+    with st.spinner("Extracting data... ⏳"):
+        lines = extract_text(uploaded_file)
+        st.write("### Extracted Text:")
+        st.write(lines)
+
+        parsed = parse_data(lines)
+
+        if any(parsed.values()):
+            st.success("✅ Data extracted successfully!")
+            st.json(parsed)
+
+            # Append extracted record to dataset
+            df = pd.concat([df, pd.DataFrame([parsed])], ignore_index=True)
+            df.to_csv(DATA_FILE, index=False)
+            st.success("Record added to dataset ✅")
+        else:
+            st.warning("⚠️ No relevant data extracted. Check the image clarity or text format.")
 
 # ----------------------- DATA DISPLAY -----------------------
 st.divider()
-st.subheader("Extracted Receipts Dataset")
+st.subheader("📊 Extracted Receipts Dataset")
 st.dataframe(df, use_container_width=True)
 
 # Clean and calculate total amount using only $-based entries
 try:
     df["Amount Cleaned"] = df["Amount Transferred"].apply(lambda x: clean_amount_value(x) if pd.notnull(x) else None)
     total_amount = df["Amount Cleaned"].dropna().sum()
-    st.metric(label="Total Amount Transferred", value=f"${total_amount:,.2f}")
+    st.metric(label="💰 Total Amount Transferred", value=f"${total_amount:,.2f}")
 except Exception:
     st.warning("Unable to calculate total — please ensure amounts contain a $ sign.")
 
 # ----------------------- DOWNLOAD BUTTON -----------------------
 st.download_button(
-    label="Download Dataset as CSV",
+    label="📥 Download Dataset as CSV",
     data=df.drop(columns="Amount Cleaned", errors="ignore").to_csv(index=False).encode("utf-8"),
     file_name="extracted_receipts.csv",
     mime="text/csv"
 )
+
+st.info("Uploads append to the same dataset. Bank name is detected as the first FULLY UPPERCASE text before 'Detailed Receipt'. Amounts are taken only when a $ is present.")
